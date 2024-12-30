@@ -1,0 +1,200 @@
+[
+    {
+        "id": "2b99f5575860097d",
+        "type": "tab",
+        "label": "IntCSV"
+    },
+    {
+        "id": "ff2d49d049544bc3",
+        "type": "mqtt in",
+        "z": "2b99f5575860097d",
+        "name": "MQTT In",
+        "topic": "Cloudpoint/Updates",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "817e7c062684a4e0",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 280,
+        "y": 260,
+        "wires": [
+            [
+                "e220cdad48574c57"
+            ]
+        ]
+    },
+    {
+        "id": "e220cdad48574c57",
+        "type": "csv",
+        "z": "2b99f5575860097d",
+        "name": "Convert to CSV",
+        "spec": "rfc",
+        "sep": ",",
+        "hdrin": true,
+        "hdrout": "all",
+        "multi": "one",
+        "ret": "\\r\\n",
+        "temp": "",
+        "skip": "0",
+        "strings": true,
+        "include_empty_strings": true,
+        "include_null_values": true,
+        "x": 440,
+        "y": 260,
+        "wires": [
+            [
+                "0a09b0fdc61a4818",
+                "f23812fe525d4e30"
+            ]
+        ]
+    },
+    {
+        "id": "f23812fe525d4e30",
+        "type": "debug",
+        "z": "2b99f5575860097d",
+        "name": "Debug",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 610,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "0a09b0fdc61a4818",
+        "type": "function",
+        "z": "2b99f5575860097d",
+        "name": "Function",
+        "func": "// Retrieve accumulated TestNewCSV from flow context\nlet TestNewCSV = flow.get('TestNewCSV') || '';\n\n// Get current date and time separately in PST format\nlet options = { timeZone: 'America/Los_Angeles', hour12: false };\nlet currentDate = new Date().toLocaleDateString('en-US', options);\nlet currentTime = new Date().toLocaleTimeString('en-US', options);\n\n// Check if msg.payload is defined\nif (msg.payload) {\n    let csvHeaders = flow.get('csvHeaders') || '';  // Get stored headers or empty string\n    let lines = msg.payload.split('\\n');  // Split payload into lines\n\n    // If headers aren't set yet and the message contains valid data, detect and store them\n    if (!csvHeaders && lines.length > 0 && lines[0].trim()) {\n        csvHeaders = `Date,Time,${lines[0]}`;  // Add \"Date\" and \"Time\" to the detected headers\n        flow.set('csvHeaders', csvHeaders);\n    }\n\n    // Add headers only once per file write interval\n    if (!flow.get('csvHeadersAdded') && csvHeaders) {\n        TestNewCSV += `${csvHeaders}\\n`;\n        flow.set('csvHeadersAdded', true);  // Mark that headers were added\n    }\n\n    // Prepend current date and time to each data row and accumulate the CSV content\n    lines.slice(1).filter(line => line.trim()).forEach(line => {\n        TestNewCSV += `${currentDate},${currentTime},${line}\\n`;  // Prepend Date and Time separately to each row\n    });\n\n    // Store the updated TestNewCSV in flow context\n    flow.set('TestNewCSV', TestNewCSV);\n}\n\n// Check if this is an auto or manual trigger for saving the file\nif (msg.triggerAuto || msg.triggerManual) {\n    if (!TestNewCSV) TestNewCSV = 'No messages/data for the selected time interval\\n';  // Default message\n\n    let flowName = 'IntCSV';\n    let date = new Date().toISOString().split('T')[0];  // YYYY-MM-DD\n    let time = new Date().toLocaleTimeString('en-US', options).replace(/:/g, '-');  // HH-MM-SS in PST\n\n    // Set folder path, filename, and payload for writing\n    msg.folderPath = `/home/ec2-user/node-red/mount/s3/user-node-red-bucket/FlowData/${flowName}/${date}`;\n    msg.filename = `${msg.folderPath}/${flowName}_${time}.csv`;\n    msg.payload = TestNewCSV;\n\n    // Debug info\n    node.warn(`Writing file: ${msg.filename}\\nContent: ${TestNewCSV}`);\n\n    // Reset TestNewCSV and headers after writing\n    flow.set('TestNewCSV', '');\n    flow.set('csvHeadersAdded', false);  // Reset header flag to ensure headers are added for the next file\n    flow.set('csvHeaders', '');  // Reset stored headers for the next file\n\n    return msg;  // Trigger file writing\n}\n\n// If not saving, continue accumulating the CSV data\nflow.set('TestNewCSV', TestNewCSV);  // Update TestNewCSV in the flow context\n\n// Do not pass to the file write node unless triggered by the inject node\nreturn null;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 360,
+        "wires": [
+            [
+                "0ac9f055858b4f94"
+            ]
+        ]
+    },
+    {
+        "id": "0ac9f055858b4f94",
+        "type": "file",
+        "z": "2b99f5575860097d",
+        "name": "",
+        "filename": "filename",
+        "filenameType": "msg",
+        "appendNewline": true,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 760,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3b604dc332da4cde",
+        "type": "inject",
+        "z": "2b99f5575860097d",
+        "name": "AutoSave File",
+        "props": [
+            {
+                "p": "triggerAuto",
+                "v": "true",
+                "vt": "str"
+            }
+        ],
+        "repeat": "900",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "15",
+        "topic": "",
+        "x": 420,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "640a862643d94490",
+        "type": "inject",
+        "z": "2b99f5575860097d",
+        "name": "ManualSave File",
+        "props": [
+            {
+                "p": "triggerManual",
+                "v": "true",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 420,
+        "y": 360,
+        "wires": [
+            [
+                "0a09b0fdc61a4818"
+            ]
+        ]
+    },
+    {
+        "id": "817e7c062684a4e0",
+        "type": "mqtt-broker",
+        "name": "Broker ",
+        "broker": "a25z0fjr8cb2t-ats.iot.us-east-1.amazonaws.com",
+        "port": "8883",
+        "tls": "0b81ea9b73562c9f",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "0b81ea9b73562c9f",
+        "type": "tls-config",
+        "name": "TLS-Config",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "certificate.pem.crt",
+        "keyname": "private.pem.key",
+        "caname": "AmazonRootCA1.pem",
+        "servername": "",
+        "verifyservercert": true,
+        "alpnprotocol": ""
+    }
+]

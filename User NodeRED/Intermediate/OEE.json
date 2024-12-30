@@ -1,0 +1,200 @@
+[
+    {
+        "id": "flow_id",
+        "type": "tab",
+        "label": "OEE Calculation Flow",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "mqtt_in_node",
+        "type": "mqtt in",
+        "z": "flow_id",
+        "name": "MQTT Machine Data",
+        "topic": "LabOps/Memphis/BF/Job/#",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "817e7c062684a4e0",
+        "nl": false,
+        "rap": false,
+        "inputs": 0,
+        "x": 170,
+        "y": 340,
+        "wires": [
+            [
+                "d434e0c1e5b842a2"
+            ]
+        ]
+    },
+    {
+        "id": "d434e0c1e5b842a2",
+        "type": "function",
+        "z": "flow_id",
+        "name": "Identify Machine Type",
+        "func": "// Initialize global machine types if not set\nvar globalMachineTypes = global.get('machineTypes') || {};\n\n// Extract ClientId from incoming message\nvar clientId = msg.payload.Header.ClientId || \"Unknown\";\n\n// Initialize machine type variable\nvar machineType = \"Unknown\";\n\n// Focus only on the Dispenser: BFMM011001\nif (clientId === 'BFMM011001') {\n    machineType = 'Dispenser';\n}\n\n// Store the machine type globally\nglobalMachineTypes[clientId] = machineType;\nglobal.set('machineTypes', globalMachineTypes);\n\n// Store the machine type and clientId in the message for further processing\nmsg.payload.machineType = machineType;\nmsg.payload.clientId = clientId;\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 340,
+        "wires": [
+            [
+                "ee50746de47059f9"
+            ]
+        ]
+    },
+    {
+        "id": "ee50746de47059f9",
+        "type": "function",
+        "z": "flow_id",
+        "name": "Calculate OEE",
+        "func": "// Extract machine type and data\nvar machineType = msg.payload.machineType;\nvar machineData = msg.payload.Data;\nvar clientId = msg.payload.clientId;\n\n// Initialize global OEE values if not set\nvar globalOEEValues = global.get('oeeValues') || {};\n\n// Ensure this calculation is only for the Dispenser (BFMM011001)\nif (clientId !== 'BFMM011001') {\n    return msg;  // Exit if it's not the Dispenser we're focused on\n}\n\n// Ensure machineData has necessary properties for OEE calculation\nif (!machineData.P5 || !machineData.P6 || !machineData.P7 || !machineData.P8 || !machineData.P9) {\n    return msg;  // Exit early if data is incomplete\n}\n\n// Extract the necessary data points for OEE calculation\nvar plannedProductionTime = parseFloat(machineData.P5);  // Planned production time (P5)\nvar actualRunTime = parseFloat(machineData.P6);          // Actual runtime (P6)\nvar totalCount = parseInt(machineData.P7);               // Total count of items (P7)\nvar goodCount = parseInt(machineData.P8);                // Good count (P8)\nvar idealCycleTime = parseFloat(machineData.P9);         // Ideal cycle time (P9)\n\n// Calculate Availability, Performance, and Quality\nvar availability = (actualRunTime / plannedProductionTime) * 100;\nvar performance = ((idealCycleTime * totalCount) / actualRunTime) * 100;\nvar quality = (goodCount / totalCount) * 100;\n\n// Calculate OEE as percentage\nvar OEE = ((availability / 100) * (performance / 100) * (quality / 100)) * 100;\n\n// Store OEE values in global state for the Dispenser\nglobalOEEValues[machineType] = {\n    OEE: OEE.toFixed(2),\n    availability: availability.toFixed(2),\n    performance: performance.toFixed(2),\n    quality: quality.toFixed(2)\n};\nglobal.set('oeeValues', globalOEEValues);\n\n// Attach OEE values to the message for plotting\nmsg.payload.oee = OEE.toFixed(2);\nmsg.payload.availability = availability.toFixed(2);\nmsg.payload.performance = performance.toFixed(2);\nmsg.payload.quality = quality.toFixed(2);\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 340,
+        "wires": [
+            [
+                "f6e40adcc70921df",
+                "191b1ab26219da99"
+            ]
+        ]
+    },
+    {
+        "id": "f6e40adcc70921df",
+        "type": "function",
+        "z": "flow_id",
+        "name": "Prepare Data for Plotting",
+        "func": "// Get OEE values from global context\nvar globalOEEValues = global.get('oeeValues') || {};\nvar oeeValue = 0;  // Default to 0\n\n// Extract OEE values for Dispenser (BFMM011001)\nif (globalOEEValues['Dispenser'] && globalOEEValues['Dispenser'].OEE) {\n    oeeValue = parseFloat(globalOEEValues['Dispenser'].OEE);\n}\n\n// Prepare message payload for gauge\nmsg.payload = oeeValue;\n\nreturn msg;\n",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 850,
+        "y": 340,
+        "wires": [
+            [
+                "a463c67e1e4b2017"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "191b1ab26219da99",
+        "type": "debug",
+        "z": "flow_id",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 820,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "a463c67e1e4b2017",
+        "type": "ui_gauge",
+        "z": "flow_id",
+        "name": "",
+        "group": "b51c9f8140883993",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "gauge",
+        "label": "units",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 10,
+        "colors": [
+            "#b30000",
+            "#e6e600",
+            "#4acb3a"
+        ],
+        "seg1": "75",
+        "seg2": "90",
+        "diff": false,
+        "className": "",
+        "x": 1050,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "817e7c062684a4e0",
+        "type": "mqtt-broker",
+        "name": "Broker ",
+        "broker": "a25z0fjr8cb2t-ats.iot.us-east-1.amazonaws.com",
+        "port": "8883",
+        "tls": "0b81ea9b73562c9f",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "b51c9f8140883993",
+        "type": "ui_group",
+        "name": "Default",
+        "tab": "d453a3e0c940d959",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "0b81ea9b73562c9f",
+        "type": "tls-config",
+        "name": "TLS-Config",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "certificate.pem.crt",
+        "keyname": "private.pem.key",
+        "caname": "AmazonRootCA1.pem",
+        "servername": "",
+        "verifyservercert": true,
+        "alpnprotocol": ""
+    },
+    {
+        "id": "d453a3e0c940d959",
+        "type": "ui_tab",
+        "name": "OEE",
+        "icon": "Dashboard",
+        "disabled": false,
+        "hidden": false
+    }
+]

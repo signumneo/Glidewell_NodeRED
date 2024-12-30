@@ -1,0 +1,279 @@
+[
+    {
+        "id": "ffcb7068434bf416",
+        "type": "tab",
+        "label": "Admin",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "c1939400d3080315",
+        "type": "http in",
+        "z": "ffcb7068434bf416",
+        "name": "HTTP In",
+        "url": "/set-topic",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 80,
+        "y": 300,
+        "wires": [
+            [
+                "0653d2fe7ee66ed6"
+            ]
+        ]
+    },
+    {
+        "id": "0653d2fe7ee66ed6",
+        "type": "function",
+        "z": "ffcb7068434bf416",
+        "name": "Extract",
+        "func": "// Extract template name and topic from URL\nlet templateName = msg.req.query.template;\nlet topicName = msg.req.query.topic;\n\nglobal.set('topicName', topicName);\nnode.warn(topicName);\n\n// Set up payload for Lambda\nmsg.payload = {\n    \"template_name\": templateName,\n    \"topic_name\": topicName\n};\n\nnode.warn(msg.payload)\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 300,
+        "wires": [
+            [
+                "8d26e59b5aae3f68",
+                "8520b721ab511d02"
+            ]
+        ]
+    },
+    {
+        "id": "8d26e59b5aae3f68",
+        "type": "http request",
+        "z": "ffcb7068434bf416",
+        "name": "HTTP Request",
+        "method": "POST",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://6nyqt4r0x3.execute-api.us-east-1.amazonaws.com/dev/fetch-flow",
+        "tls": "281a52a96f054890",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 320,
+        "y": 380,
+        "wires": [
+            [
+                "f192dda744ddc2ea"
+            ]
+        ]
+    },
+    {
+        "id": "f192dda744ddc2ea",
+        "type": "function",
+        "z": "ffcb7068434bf416",
+        "name": "Set Message",
+        "func": "let parsedPayload;\n\ntry {\n    // Parse the incoming payload\n    parsedPayload = JSON.parse(msg.payload);\n} catch (error) {\n    node.error(\"Failed to parse the incoming payload as JSON\", msg);\n    return null;\n}\n\n// Check if the content exists within the parsed payload\nif (parsedPayload && parsedPayload.body && parsedPayload.body.content) {\n    let flowContent = parsedPayload.body.content;  // Extract the content\n    \n    // Check if we have at least one flow/tab in the content\n    if (flowContent.length > 0) {\n        let singleFlow = flowContent[0];  // Extract the first tab\n        let flowId = singleFlow.id;  // Get the flow ID\n\n        // Store the flowId in the message object for later use in the confirmation step\n        msg.flowId = flowId;\n\n        // Prepare payload for the /flow endpoint\n        msg.payload = {\n            \"id\": singleFlow.id,\n            \"label\": singleFlow.label,\n            \"nodes\": flowContent.filter(node => node.z === singleFlow.id)  // Filter nodes that belong to this flow\n        };\n\n        // Store the deployed flow label globally for later use\n        global.set('deployedFlowLabel', msg.payload.label);\n\n        return msg;  // Ready for deployment at /flow\n    } else {\n        node.error(\"No valid flow found in the content.\", msg);\n        return null;\n    }\n} else {\n    node.error(\"Template not found.\");\n    return null;\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 300,
+        "wires": [
+            [
+                "ae3712b1ecc680c2"
+            ]
+        ]
+    },
+    {
+        "id": "ae3712b1ecc680c2",
+        "type": "http request",
+        "z": "ffcb7068434bf416",
+        "name": "HTTP Request",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://nodered-console.unsdev.glidewellengineering.com/flow",
+        "tls": "281a52a96f054890",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "Content-Type",
+                "keyValue": "",
+                "valueType": "application/json",
+                "valueValue": ""
+            }
+        ],
+        "x": 560,
+        "y": 380,
+        "wires": [
+            [
+                "32aad213718e2b72",
+                "7573979d9144b7c9"
+            ]
+        ]
+    },
+    {
+        "id": "09c18239647ec067",
+        "type": "function",
+        "z": "ffcb7068434bf416",
+        "name": "Confirmation",
+        "func": "// Retrieve the subscribed topic from the global context\nlet topicName = global.get('topicName');\n\n// Check if the flow was successfully deployed and the new flow ID was found\nif (msg.newFlowId && msg.statusCode === 200) {\n    let editorUrl = \"https://nodered-console.unsdev.glidewellengineering.com\";  // Your Node-RED editor URL\n    let newFlowTabId = msg.newFlowId || \"0\";  // Use the new flow ID for redirection\n\n    // Prepare the success confirmation message with the subscribed topic and redirection to the specific tab\n    msg.payload = `\n        <html>\n            <head>\n                <meta http-equiv=\"refresh\" content=\"3; url=${editorUrl}/#flow/${newFlowTabId}\" />\n                <style>\n                    body {\n                        background-color: #161920;\n                        color: #ffffff;\n                        font-family: Arial, sans-serif;\n                        text-align: center;\n                        padding-top: 50px;\n                    }\n                    h1 {\n                        font-size: 24px;\n                        margin-bottom: 20px;\n                    }\n                    p {\n                        font-size: 18px;\n                        margin-bottom: 20px;\n                    }\n                    a {\n                        text-decoration: none;\n                        color: #19bcc0;\n                        font-weight: bold;\n                        display: inline-block;\n                        margin-top: 20px;\n                        padding: 10px 20px;\n                        border: 2px solid #19bcc0;\n                        border-radius: 5px;\n                    }\n                    a:hover {\n                        background-color: #19bcc0;\n                        color: #161920;\n                    }\n                </style>\n            </head>\n            <body>\n                <h1>Subscribed to topic: ${topicName}</h1>\n                <p>You will be redirected to <a href=\"${editorUrl}/#flow/${newFlowTabId}\">Node-RED</a> in a few seconds.</p>\n                <p><a href=\"${editorUrl}/#flow/${newFlowTabId}\">Go to Node-RED Now</a></p>\n            </body>\n        </html>\n    `;\n\n    msg.headers = {\n        \"Content-Type\": \"text/html\"\n    };\n\n    // Set the HTTP status code to 200 (OK)\n    msg.statusCode = 200;\n} else {\n    // Handle the failure case if the new flow ID is not found\n    msg.payload = {\n        status: \"error\",\n        message: \"Failed to deploy the flow or find the new flow ID.\"\n    };\n    msg.headers = {\n        \"Content-Type\": \"application/json\"\n    };\n    msg.statusCode = 500;\n}\n\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 970,
+        "y": 380,
+        "wires": [
+            [
+                "0e523e73062675ec"
+            ]
+        ]
+    },
+    {
+        "id": "0e523e73062675ec",
+        "type": "http response",
+        "z": "ffcb7068434bf416",
+        "name": "HTTP Out",
+        "statusCode": "",
+        "headers": {},
+        "x": 1140,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "32aad213718e2b72",
+        "type": "http request",
+        "z": "ffcb7068434bf416",
+        "name": "",
+        "method": "GET",
+        "ret": "txt",
+        "paytoqs": "ignore",
+        "url": "https://nodered-console.unsdev.glidewellengineering.com/flows",
+        "tls": "281a52a96f054890",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [],
+        "x": 710,
+        "y": 300,
+        "wires": [
+            [
+                "87bb872e96c11cef",
+                "2485cca74343c258"
+            ]
+        ]
+    },
+    {
+        "id": "87bb872e96c11cef",
+        "type": "function",
+        "z": "ffcb7068434bf416",
+        "name": "Find Id",
+        "func": "// Get the globally stored flow label\nlet deployedFlowLabel = global.get('deployedFlowLabel');\n\n// Parse the list of flows received from the /flows endpoint\nlet flows;\ntry {\n    flows = JSON.parse(msg.payload);  // Parse the string into an object\n} catch (error) {\n    node.error(\"Failed to parse the incoming payload as JSON\", msg);\n    return null;\n}\n\n// Filter to get only the entries where type is \"tab\"\nlet tabs = flows.filter(flow => flow.type === \"tab\");\n\n// Find the flow with the matching label\nlet newFlow = tabs.find(flow => flow.label === deployedFlowLabel);\n\nif (newFlow) {\n    // Store the new flow ID to be used in the confirmation node\n    msg.newFlowId = newFlow.id;\n\n    // Proceed with the flow\n    return msg;\n} else {\n    // If no matching flow is found, log an error\n    node.error(\"Could not find the flow with the matching label.\");\n    return null;\n}\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 380,
+        "wires": [
+            [
+                "09c18239647ec067",
+                "a3341581a933ca48"
+            ]
+        ]
+    },
+    {
+        "id": "2485cca74343c258",
+        "type": "debug",
+        "z": "ffcb7068434bf416",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "a3341581a933ca48",
+        "type": "debug",
+        "z": "ffcb7068434bf416",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1000,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "7573979d9144b7c9",
+        "type": "debug",
+        "z": "ffcb7068434bf416",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 720,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "8520b721ab511d02",
+        "type": "debug",
+        "z": "ffcb7068434bf416",
+        "name": "debug 4",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 360,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "281a52a96f054890",
+        "type": "tls-config",
+        "name": "TLS - Filter",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "certificate.pem.crt",
+        "keyname": "private.pem.key",
+        "caname": "AmazonRootCA1.pem",
+        "servername": "",
+        "verifyservercert": true,
+        "alpnprotocol": ""
+    }
+]

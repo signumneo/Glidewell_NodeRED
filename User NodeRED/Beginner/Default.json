@@ -1,0 +1,91 @@
+[
+    {
+        "id": "7bd193a19621b82b",
+        "type": "tab",
+        "label": "BegDefTest"
+    },
+    {
+        "id": "3b46b5dc4bca4c1d",
+        "type": "mqtt in",
+        "z": "7bd193a19621b82b",
+        "name": "MQTT In",
+        "topic": "Cloudpoint/Updates",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "6f26428b7fbe308d",
+        "nl": false,
+        "rap": false,
+        "rh": 0,
+        "inputs": 0,
+        "x": 380,
+        "y": 240,
+        "wires": [
+            [
+                "2fcf908abfb14382"
+            ]
+        ]
+    },
+    {
+        "id": "2fcf908abfb14382",
+        "type": "debug",
+        "z": "7bd193a19621b82b",
+        "name": "Debug",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 590,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "6f26428b7fbe308d",
+        "type": "mqtt-broker",
+        "name": "Broker",
+        "broker": "a25z0fjr8cb2t-ats.iot.us-east-1.amazonaws.com",
+        "port": "8883",
+        "tls": "3b5863a3b123e9a6",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "3b5863a3b123e9a6",
+        "type": "tls-config",
+        "name": "TLS-Config",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "certificate.pem.crt",
+        "keyname": "private.pem.key",
+        "caname": "AmazonRootCA1.pem",
+        "servername": "",
+        "verifyservercert": true,
+        "alpnprotocol": ""
+    }
+]

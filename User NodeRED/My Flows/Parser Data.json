@@ -1,0 +1,132 @@
+[
+    {
+        "id": "cc3241755c6dd704",
+        "type": "tab",
+        "label": "TestFlow",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "bcecedfd9a4044bf",
+        "type": "mqtt in",
+        "z": "cc3241755c6dd704",
+        "name": "",
+        "topic": "Cloudpoint/Updates",
+        "qos": "1",
+        "datatype": "auto-detect",
+        "broker": "5a685de329c592df",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 250,
+        "y": 240,
+        "wires": [
+            [
+                "73a46d16b9a12f5e",
+                "fcc3fa054a299705"
+            ]
+        ]
+    },
+    {
+        "id": "73a46d16b9a12f5e",
+        "type": "function",
+        "z": "cc3241755c6dd704",
+        "name": "Function parser",
+        "func": "// Initialize the storage for counts if not already set\nlet statusCounts = flow.get('statusCounts') || {};\nlet caseStatusCounts = flow.get('caseStatusCounts') || {};\n\n// Extract the status and caseStatus from the incoming message\nlet status = msg.payload.status;\nlet caseStatus = msg.payload.caseStatus; // Assuming 'caseStatus' might come in future messages\n\n// Update the count for 'status'\nif (status) {\n    if (statusCounts[status]) {\n        statusCounts[status] += 1;\n    } else {\n        statusCounts[status] = 1;\n    }\n}\n\n// Update the count for 'caseStatus' if it exists in the message\nif (caseStatus) {\n    if (caseStatusCounts[caseStatus]) {\n        caseStatusCounts[caseStatus] += 1;\n    } else {\n        caseStatusCounts[caseStatus] = 1;\n    }\n}\n\n// Store the updated counts back to the flow context\nflow.set('statusCounts', statusCounts);\nflow.set('caseStatusCounts', caseStatusCounts);\n\n// Prepare the payload to be published back as JSON\nmsg.payload = {\n    statusCounts: statusCounts,\n    caseStatusCounts: caseStatusCounts\n};\n\n// Return the message so it can be published to MQTT or used elsewhere\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 480,
+        "y": 240,
+        "wires": [
+            [
+                "dc3a7d56cfae8982"
+            ]
+        ]
+    },
+    {
+        "id": "dc3a7d56cfae8982",
+        "type": "mqtt out",
+        "z": "cc3241755c6dd704",
+        "name": "Engineering/Statistics",
+        "topic": "Engineering/Statistics",
+        "qos": "1",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "5a685de329c592df",
+        "x": 740,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "fcc3fa054a299705",
+        "type": "debug",
+        "z": "cc3241755c6dd704",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 440,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "5a685de329c592df",
+        "type": "mqtt-broker",
+        "name": "MQTT Broker",
+        "broker": "a25z0fjr8cb2t-ats.iot.us-east-1.amazonaws.com",
+        "port": "8883",
+        "tls": "055eeb7e1abe20f8",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "055eeb7e1abe20f8",
+        "type": "tls-config",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "certificate.pem.crt",
+        "keyname": "private.pem.key",
+        "caname": "AmazonRootCA1.pem",
+        "servername": "",
+        "verifyservercert": true,
+        "alpnprotocol": ""
+    }
+]
