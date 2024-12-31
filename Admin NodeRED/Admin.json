@@ -41,7 +41,7 @@
         "wires": [
             [
                 "8d26e59b5aae3f68",
-                "8520b721ab511d02"
+                "2485cca74343c258"
             ]
         ]
     },
@@ -53,7 +53,7 @@
         "method": "POST",
         "ret": "txt",
         "paytoqs": "ignore",
-        "url": "https://6nyqt4r0x3.execute-api.us-east-1.amazonaws.com/dev/fetch-flow",
+        "url": "https://f5lcc1u7zg.execute-api.us-east-1.amazonaws.com/dev/Eng-JT-NodeREDFetch",
         "tls": "281a52a96f054890",
         "persist": false,
         "proxy": "",
@@ -65,7 +65,8 @@
         "y": 380,
         "wires": [
             [
-                "f192dda744ddc2ea"
+                "f192dda744ddc2ea",
+                "a3341581a933ca48"
             ]
         ]
     },
@@ -74,7 +75,7 @@
         "type": "function",
         "z": "ffcb7068434bf416",
         "name": "Set Message",
-        "func": "let parsedPayload;\n\ntry {\n    // Parse the incoming payload\n    parsedPayload = JSON.parse(msg.payload);\n} catch (error) {\n    node.error(\"Failed to parse the incoming payload as JSON\", msg);\n    return null;\n}\n\n// Check if the content exists within the parsed payload\nif (parsedPayload && parsedPayload.body && parsedPayload.body.content) {\n    let flowContent = parsedPayload.body.content;  // Extract the content\n    \n    // Check if we have at least one flow/tab in the content\n    if (flowContent.length > 0) {\n        let singleFlow = flowContent[0];  // Extract the first tab\n        let flowId = singleFlow.id;  // Get the flow ID\n\n        // Store the flowId in the message object for later use in the confirmation step\n        msg.flowId = flowId;\n\n        // Prepare payload for the /flow endpoint\n        msg.payload = {\n            \"id\": singleFlow.id,\n            \"label\": singleFlow.label,\n            \"nodes\": flowContent.filter(node => node.z === singleFlow.id)  // Filter nodes that belong to this flow\n        };\n\n        // Store the deployed flow label globally for later use\n        global.set('deployedFlowLabel', msg.payload.label);\n\n        return msg;  // Ready for deployment at /flow\n    } else {\n        node.error(\"No valid flow found in the content.\", msg);\n        return null;\n    }\n} else {\n    node.error(\"Template not found.\");\n    return null;\n}\n",
+        "func": "let parsedPayload;\n\n// Check if the payload is already an object or needs parsing\nif (typeof msg.payload === 'string') {\n    try {\n        // Parse the incoming payload\n        parsedPayload = JSON.parse(msg.payload);\n    } catch (error) {\n        node.error(\"Failed to parse the incoming payload as JSON\", { payload: msg.payload, error: error });\n        return null;\n    }\n} else if (typeof msg.payload === 'object') {\n    parsedPayload = msg.payload; // Use the payload as-is\n} else {\n    node.error(\"Unexpected payload format\", { payload: msg.payload });\n    return null;\n}\n\n// Validate and check if the \"content\" field exists\nif (parsedPayload && Array.isArray(parsedPayload.content)) {\n    let flowContent = parsedPayload.content; // Extract the content array\n\n    // Check if there is at least one flow/tab in the content\n    if (flowContent.length > 0) {\n        let singleFlow = flowContent[0]; // Extract the first tab\n        let flowId = singleFlow.id; // Get the flow ID\n\n        // Store the flowId in the message object for later use\n        msg.flowId = flowId;\n\n        // Prepare payload for the /flow endpoint\n        msg.payload = {\n            id: singleFlow.id,\n            label: singleFlow.label,\n            nodes: flowContent.filter(node => node.z === singleFlow.id) // Filter nodes that belong to this flow\n        };\n\n        // Store the deployed flow label globally for later use\n        global.set('deployedFlowLabel', msg.payload.label);\n\n        return msg; // Ready for deployment at /flow\n    } else {\n        node.error(\"No valid flow found in the content.\", { content: flowContent });\n        return null;\n    }\n} else {\n    node.error(\"Content not found or invalid content format.\", { parsedPayload: parsedPayload });\n    return null;\n}\n",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -85,7 +86,8 @@
         "y": 300,
         "wires": [
             [
-                "ae3712b1ecc680c2"
+                "ae3712b1ecc680c2",
+                "7573979d9144b7c9"
             ]
         ]
     },
@@ -117,7 +119,7 @@
         "wires": [
             [
                 "32aad213718e2b72",
-                "7573979d9144b7c9"
+                "8520b721ab511d02"
             ]
         ]
     },
@@ -156,7 +158,7 @@
         "id": "32aad213718e2b72",
         "type": "http request",
         "z": "ffcb7068434bf416",
-        "name": "",
+        "name": "HTTP Request - Deployment",
         "method": "GET",
         "ret": "txt",
         "paytoqs": "ignore",
@@ -168,12 +170,12 @@
         "authType": "",
         "senderr": false,
         "headers": [],
-        "x": 710,
+        "x": 760,
         "y": 300,
         "wires": [
             [
                 "87bb872e96c11cef",
-                "2485cca74343c258"
+                "0a266faa013d21fd"
             ]
         ]
     },
@@ -193,8 +195,7 @@
         "y": 380,
         "wires": [
             [
-                "09c18239647ec067",
-                "a3341581a933ca48"
+                "09c18239647ec067"
             ]
         ]
     },
@@ -210,8 +211,8 @@
         "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 940,
-        "y": 300,
+        "x": 360,
+        "y": 240,
         "wires": []
     },
     {
@@ -226,8 +227,8 @@
         "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 1000,
-        "y": 480,
+        "x": 480,
+        "y": 440,
         "wires": []
     },
     {
@@ -242,8 +243,8 @@
         "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 720,
-        "y": 480,
+        "x": 600,
+        "y": 240,
         "wires": []
     },
     {
@@ -258,8 +259,24 @@
         "complete": "false",
         "statusVal": "",
         "statusType": "auto",
-        "x": 360,
-        "y": 220,
+        "x": 740,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "0a266faa013d21fd",
+        "type": "debug",
+        "z": "ffcb7068434bf416",
+        "name": "debug 5",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1000,
+        "y": 240,
         "wires": []
     },
     {
